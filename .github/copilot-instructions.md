@@ -1,6 +1,6 @@
-# Copilot Instructions — PLC-EdgeFlow-eBPF
+# Copilot Instructions — plc-ebpf-autoscaler
 
-> **SDD: PLC-EdgeFlow-eBPF Stability Hardening**
+> **SDD: plc-ebpf-autoscaler Stability Hardening**
 > Version: 1.0 | Target: Semiconductor FAB, SBC deployment
 
 ---

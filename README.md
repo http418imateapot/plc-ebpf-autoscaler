@@ -18,16 +18,14 @@
 ### 專案架構
 
 ```
-PLC-EdgeFlow-eBPF/
-├── .github/
-│   └── copilot-instructions.md  # Copilot SDD — 開發規範與任務追蹤
-├── systemd/
-│   ├── plc-adjust.service       # systemd 監控調控服務
-│   └── plc-decoder@.service     # systemd 解碼器 template 服務
-├── README.md                    # 本文件
-├── requirements.txt             # Python 套件（版本鎖定）
-├── decoder.py                   # PLC 點位資料消化、解碼程式
-└── adjust.py                    # PLC 點位採集流量監測、調控程式
+plc-ebpf-autoscaler/
+├── README.md                      # 本文件
+├── requirements.txt               # 範例程式所需的 Python 套件
+├── decoder.py                     # PLC 採集點位資料消化、解碼程式
+├── adjust.py                      # PLC 點位採集資訊量監測、點位消化調控程式
+└── systemd/
+    ├── plc-adjust.service         # systemd unit (adjust.py)
+    └── plc-decoder@.service       # systemd template unit (decoder.py)
 ```
 
 ---
