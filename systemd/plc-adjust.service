@@ -12,6 +12,8 @@ Group=plcmon
 # EnvironmentFile allows site-specific overrides without changing this unit.
 EnvironmentFile=-/etc/plc-edgeflow/adjust.env
 
+# If installed via `pip install plc-ebpf-autoscaler`, replace the ExecStart path
+# with `ExecStart=/usr/local/bin/plc-adjust \` (or wherever pip places scripts).
 ExecStart=/bin/sh -lc 'exec /usr/bin/python3 /opt/plc-edgeflow/adjust.py \
     --serial "${PLC_SERIAL:-all}" \
     --machine_sn "${PLC_MACHINE_SN:-1}" \

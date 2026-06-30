@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plc-ebpf-autoscaler"
+version = "1.0.0"
+description = "eBPF-based PLC serial-port traffic monitor that dynamically scales MQTT decoder processes on Linux SBCs"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Tinker" }]
+requires-python = ">=3.10"
+keywords = ["plc", "ebpf", "mqtt", "autoscaler", "industrial", "iot"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: No Input/Output (Daemon)",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking",
+]
+
+# Runtime dependencies installable via pip.
+# NOTE: the BCC library (eBPF bindings) is provided by the system package
+#       manager (e.g. `apt install python3-bpfcc`), not by pip.
+#       Install it separately; see the README for instructions.
+dependencies = [
+    "paho-mqtt==1.6.1",
+    "PyYAML>=6.0.2",
+]
+
+[project.optional-dependencies]
+# Install BCC Python bindings from PyPI (fallback; prefer the system package).
+ebpf = ["bcc==0.29.1"]
+# Development / test tools.
+dev = [
+    "pytest>=8.3.5",
+]
+
+[project.scripts]
+plc-adjust  = "adjust:main"
+plc-decoder = "decoder:main"
+
+[project.urls]
+"Homepage"       = "https://github.com/http418imateapot/plc-ebpf-autoscaler"
+"Bug Tracker"    = "https://github.com/http418imateapot/plc-ebpf-autoscaler/issues"
+"Changelog"      = "https://github.com/http418imateapot/plc-ebpf-autoscaler/blob/main/CHANGELOG.md"
+"Security Policy"= "https://github.com/http418imateapot/plc-ebpf-autoscaler/blob/main/SECURITY.md"
+
+# ---------------------------------------------------------------------------
+# Setuptools: treat adjust.py and decoder.py as top-level modules (no package
+# directory needed — they live at the project root alongside pyproject.toml).
+# ---------------------------------------------------------------------------
+[tool.setuptools]
+py-modules = ["adjust", "decoder"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+pythonpath   = ["."]
+addopts      = "-v"
