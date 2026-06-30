@@ -17,11 +17,14 @@
 ### 專案架構
 
 ```
-PLC-EdgeFlow-eBPF/
-├── README.md         # 本文件
-├── requirements.txt  # 範例程式所需的 Python 套件
-├── decoder.py        # PLC 採集點位資料消化、解碼程式
-├── adjust.py         # PLC 點位採集資訊量監測、點位消化調控程式
+plc-ebpf-autoscaler/
+├── README.md                      # 本文件
+├── requirements.txt               # 範例程式所需的 Python 套件
+├── decoder.py                     # PLC 採集點位資料消化、解碼程式
+├── adjust.py                      # PLC 點位採集資訊量監測、點位消化調控程式
+└── systemd/
+    ├── plc-adjust.service         # systemd unit (adjust.py)
+    └── plc-decoder@.service       # systemd template unit (decoder.py)
 ```
 
 ## 系統需求與安裝
