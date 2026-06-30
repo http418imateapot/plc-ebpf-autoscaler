@@ -1,0 +1,34 @@
+name: SQL Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sql-lint:
+    name: SQL Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install sqlfluff
+        run: pip install sqlfluff==3.3.1
+
+      - name: Lint SQL files
+        run: |
+          sql_files=$(find . -name "*.sql" -not -path "./.git/*" | sort)
+          if [ -z "$sql_files" ]; then
+            echo "No SQL files found — nothing to lint."
+            exit 0
+          fi
+          echo "Linting SQL files:"
+          echo "$sql_files"
+          sqlfluff lint --dialect sqlite $sql_files
