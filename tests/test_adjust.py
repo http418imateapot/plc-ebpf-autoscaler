@@ -25,7 +25,7 @@ def test_metrics_state_renders_health_and_prometheus():
     payload = metrics.render_prometheus()
 
     assert health["status"] == "ok"
-    assert payload.count("plc_bytes_delta") == 2
+    assert "plc_bytes_delta{machine_sn=\"FAB01\",serial_port=\"ttyACM0\"} 123" in payload
     assert 'machine_sn="FAB01",serial_port="ttyACM0"' in payload
 
 

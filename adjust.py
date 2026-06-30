@@ -224,10 +224,12 @@ class MonitoringServer:
         )
 
     def stop(self) -> None:
-        self.server.shutdown()
-        self.server.server_close()
         if self.thread.is_alive():
+            self.server.shutdown()
+            self.server.server_close()
             self.thread.join(timeout=5)
+            return
+        self.server.server_close()
 
 
 class MachineRuntime:
