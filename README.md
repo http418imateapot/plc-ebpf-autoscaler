@@ -20,9 +20,17 @@
 ```
 plc-ebpf-autoscaler/
 ├── README.md                      # 本文件
-├── requirements.txt               # 範例程式所需的 Python 套件
+├── CHANGELOG.md                   # 版本異動紀錄
+├── CONTRIBUTING.md                # 貢獻指南
+├── SECURITY.md                    # 安全漏洞回報政策
+├── LICENSE                        # MIT License
+├── pyproject.toml                 # 套件定義（PEP 517/518）
+├── requirements.txt               # 鎖定版本依賴（pip install -r 用）
 ├── decoder.py                     # PLC 採集點位資料消化、解碼程式
 ├── adjust.py                      # PLC 點位採集資訊量監測、點位消化調控程式
+├── tests/
+│   ├── test_adjust.py
+│   └── test_decoder.py
 └── systemd/
     ├── plc-adjust.service         # systemd unit (adjust.py)
     └── plc-decoder@.service       # systemd template unit (decoder.py)
@@ -40,7 +48,45 @@ plc-ebpf-autoscaler/
     * Python 3.10+、pip
     * BCC 0.29.1 (用於 eBPF 程式開發)
 
-### 安裝步驟
+### 方法 A：pip 安裝（推薦）
+
+> **注意：** BCC 為系統套件，需透過 apt 安裝，不可用 pip 取代。
+
+#### 1. 安裝系統依賴
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-pip mosquitto \
+    bpfcc-tools linux-headers-$(uname -r)
+sudo systemctl enable --now mosquitto
+```
+
+#### 2. 安裝本套件
+
+```bash
+# 從 GitHub 安裝（正式部署）
+pip install git+https://github.com/http418imateapot/plc-ebpf-autoscaler.git
+
+# 或從本機原始碼安裝（開發模式）
+pip install -e ".[dev]"
+```
+
+安裝後即可使用 `plc-adjust` 與 `plc-decoder` 命令：
+
+```bash
+plc-adjust --help
+plc-decoder --help
+```
+
+#### 3. 建立資料目錄
+
+```bash
+sudo mkdir -p /var/lib/plc-edgeflow
+```
+
+---
+
+### 方法 B：手動安裝（無 pip 環境）
 
 #### 安裝並啟用 MQTT broker (Mosquitto)
 
@@ -136,6 +182,28 @@ python3 adjust.py --dry_run --interval 5 --machine_sn TEST01
 
 ### 方法二：systemd 部署（生產環境推薦）
 
+#### 方式 A — 透過 pip 安裝後部署
+
+```bash
+# 建立低權限服務帳號
+sudo useradd --system --no-create-home plcmon
+
+# 安裝套件（讓 plc-adjust / plc-decoder console scripts 進入 PATH）
+sudo pip install git+https://github.com/http418imateapot/plc-ebpf-autoscaler.git
+
+# 更新 ExecStart 為 console script 路徑（查詢安裝位置）
+which plc-adjust   # 通常為 /usr/local/bin/plc-adjust
+
+# 安裝 systemd 服務（ExecStart 已預設指向 /usr/bin/python3 /opt/plc-edgeflow/adjust.py，
+# 若使用 pip 安裝請將其改為 /usr/local/bin/plc-adjust）
+sudo cp systemd/plc-adjust.service /etc/systemd/system/
+sudo cp systemd/plc-decoder@.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now plc-adjust
+```
+
+#### 方式 B — 直接複製腳本部署
+
 ```bash
 # 建立低權限服務帳號
 sudo useradd --system --no-create-home plcmon
@@ -193,9 +261,21 @@ journalctl -u plc-adjust -f -o json
 
 本專案使用 `.github/copilot-instructions.md` 作為 **GitHub Copilot SDD（軟體設計文件）**，記錄完整的編碼規範、架構決策與改版任務。Copilot Coding Agent 及 Copilot CLI 可直接讀取該文件並依規範產生符合專案標準的程式碼。
 
+相關開源文件：
+
+| 文件 | 說明 |
+|------|------|
+| [CHANGELOG.md](CHANGELOG.md) | 版本異動紀錄（Keep a Changelog 格式） |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 貢獻指南、開發環境設定 |
+| [SECURITY.md](SECURITY.md) | 安全漏洞回報政策 |
+| [LICENSE](LICENSE) | MIT License |
+
 ```bash
+# 安裝開發依賴
+pip install -e ".[dev]"
+
 # 執行測試
-pytest
+python3 -m pytest
 ```
 
 
