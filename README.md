@@ -67,6 +67,7 @@ sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
 
 ```bash
 pip3 install -r requirements.txt
+mkdir -p /var/lib/plc-edgeflow
 ```
 
 ---
@@ -160,6 +161,11 @@ PLC_SERIAL=ttyACM0
 PLC_MACHINE_SN=FAB01-TOOL42
 PLC_INTERVAL=60
 PLC_MIN_DELTA=8192
+PLC_METRICS_HOST=127.0.0.1
+PLC_METRICS_PORT=9108
+PLC_DECODER_PROCESSOR=lineprotocol
+PLC_DECODER_SQLITE_PATH=/var/lib/plc-edgeflow/points.db
+PLC_DECODER_DLQ_PATH=/var/lib/plc-edgeflow/decoder-dlq.db
 EOF
 ```
 
@@ -192,3 +198,53 @@ journalctl -u plc-adjust -f -o json
 pytest
 ```
 
+
+
+## 多機台設定與熱重載
+
+`adjust.py` 現在支援可選的 YAML 設定檔，讓單一服務管理多台機台與多個串列埠：
+
+```yaml
+machines:
+  - machine_sn: FAB01
+    serial_port: ttyACM0
+    min_delta: 8192
+    max_module: 16
+    max_unit: 8
+  - machine_sn: FAB02
+    serial_port: ttyUSB0
+    min_delta: 4096
+```
+
+啟動時加入 `--config /etc/plc-edgeflow/config.yaml`。更新設定檔後送出 `SIGHUP` 即可熱重載，不必重啟整個監測服務。
+
+## Decoder 處理管線
+
+`decoder.py` 支援兩種處理模式：
+
+- `--processor lineprotocol`：將正規化後的 PLC 點位資料轉為 InfluxDB line protocol，透過 JSON 結構化日誌輸出。
+- `--processor sqlite`：將正規化後的 PLC 點位資料寫入 SQLite（WAL 模式）。
+
+所有處理失敗的訊息都會寫入本地 SQLite dead-letter queue，避免 broker 短暫故障或資料格式異常時直接遺失。
+
+## 健康檢查與監控
+
+`adjust.py` 會提供兩個 HTTP 端點：
+
+- `GET /healthz`：回傳當前 machine context 狀態與最近一次 reload 結果
+- `GET /metrics`：Prometheus 格式指標，包含 `plc_bytes_delta`、`plc_active_decoders_count`、`plc_decoder_crashes_total`、`plc_ebpf_attach_errors_total`
+
+範例：
+
+```bash
+curl http://127.0.0.1:9108/healthz
+curl http://127.0.0.1:9108/metrics
+```
+
+## 開發測試
+
+安裝完相依套件後可直接執行：
+
+```bash
+python3 -m pytest
+```
