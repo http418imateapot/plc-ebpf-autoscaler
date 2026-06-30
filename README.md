@@ -1,5 +1,11 @@
 # eBPF 嵌入式 PLC 點位採集器流量管控
 
+[![CI](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/ci.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/ci.yml)
+[![SQL Lint](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml)
+[![GitHub release](https://img.shields.io/github/v/release/http418imateapot/plc-ebpf-autoscaler)](https://github.com/http418imateapot/plc-ebpf-autoscaler/releases)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ---
 
 ## 簡介
