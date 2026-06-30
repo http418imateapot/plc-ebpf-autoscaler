@@ -1,4 +1,4 @@
 paho-mqtt==1.6.1
 bcc==0.29.1
 pytest==8.3.5
-
+PyYAML==6.0.2

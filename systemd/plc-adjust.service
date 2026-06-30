@@ -5,41 +5,45 @@ After=network.target mosquitto.service
 Wants=mosquitto.service
 
 [Service]
-Type=simple
+Type=notify
 User=plcmon
 Group=plcmon
 
 # EnvironmentFile allows site-specific overrides without changing this unit.
 EnvironmentFile=-/etc/plc-edgeflow/adjust.env
 
-ExecStart=/usr/bin/python3 /opt/plc-edgeflow/adjust.py \
-    --serial      ${PLC_SERIAL:-all} \
-    --machine_sn  ${PLC_MACHINE_SN:-1} \
-    --interval    ${PLC_INTERVAL:-60} \
-    --min_delta   ${PLC_MIN_DELTA:-8192} \
-    --max_module  ${PLC_MAX_MODULE:-16} \
-    --max_unit    ${PLC_MAX_UNIT:-8}
+ExecStart=/bin/sh -lc 'exec /usr/bin/python3 /opt/plc-edgeflow/adjust.py \
+    --serial "${PLC_SERIAL:-all}" \
+    --machine_sn "${PLC_MACHINE_SN:-1}" \
+    --interval "${PLC_INTERVAL:-60}" \
+    --min_delta "${PLC_MIN_DELTA:-8192}" \
+    --max_module "${PLC_MAX_MODULE:-16}" \
+    --max_unit "${PLC_MAX_UNIT:-8}" \
+    ${PLC_CONFIG:+--config "$PLC_CONFIG"} \
+    --metrics-host "${PLC_METRICS_HOST:-127.0.0.1}" \
+    --metrics-port "${PLC_METRICS_PORT:-9108}" \
+    --decoder-broker "${PLC_BROKER:-localhost}" \
+    --decoder-port "${PLC_BROKER_PORT:-1883}" \
+    --decoder-processor "${PLC_DECODER_PROCESSOR:-lineprotocol}" \
+    --decoder-sqlite-path "${PLC_DECODER_SQLITE_PATH:-/var/lib/plc-edgeflow/points.db}" \
+    --decoder-dlq-path "${PLC_DECODER_DLQ_PATH:-/var/lib/plc-edgeflow/decoder-dlq.db}"'
+ExecStartPost=/usr/bin/python3 -c "import urllib.request; urllib.request.urlopen('http://${PLC_METRICS_HOST:-127.0.0.1}:${PLC_METRICS_PORT:-9108}/healthz', timeout=5).read()"
 
-# Restart always so a kernel panic / OOM kill does not permanently stop monitoring.
 Restart=always
 RestartSec=5
 TimeoutStopSec=15
+WatchdogSec=30
+NotifyAccess=main
 
-# Grant eBPF and kprobe capabilities without running as full root.
-# CAP_BPF        — load and manage BPF programs and maps
-# CAP_SYS_ADMIN  — required by BCC for perf_event access on older kernels
-# CAP_PERFMON    — modern kernels (5.8+) prefer this over CAP_SYS_ADMIN for perf
 AmbientCapabilities=CAP_BPF CAP_SYS_ADMIN CAP_PERFMON
 CapabilityBoundingSet=CAP_BPF CAP_SYS_ADMIN CAP_PERFMON
 
-# Harden the service environment.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=/sys/fs/bpf /sys/kernel/debug
+ReadWritePaths=/sys/fs/bpf /sys/kernel/debug /var/lib/plc-edgeflow
 
-# Redirect logs to journald (structured JSON lines are preserved as-is).
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=plc-adjust
