@@ -10,33 +10,41 @@
 
 ### 實作方案
 
-* 即時流量監控：使用 eBPF 監控 PLC 點位採集資料流量。
-* 動態資源調控：根據監控結果，調控點位消化程式的實例數量及 MQTT Topic 訂閱策略。
-* 橫向擴展：不修改現有點位資料消化程式程式，以 Sidecar 架構實現動態擴展。
+* **即時流量監控**：使用 eBPF kretprobe 監控 `tty_read` 實際回傳的 **位元組數**，精確反映真實資料量。
+* **動態資源調控**：依位元組流量門檻，調控點位消化程式的實例數量及 MQTT Topic 訂閱策略（支援擴容與縮容）。
+* **橫向擴展**：不修改現有點位資料消化程式，以 Sidecar 架構實現動態擴展。
+* **穩定部署**：提供 systemd 服務單元，支援開機自啟、崩潰自復原、最小權限執行。
 
 ### 專案架構
 
 ```
 PLC-EdgeFlow-eBPF/
-├── README.md         # 本文件
-├── requirements.txt  # 範例程式所需的 Python 套件
-├── decoder.py        # PLC 採集點位資料消化、解碼程式
-├── adjust.py         # PLC 點位採集資訊量監測、點位消化調控程式
+├── .github/
+│   └── copilot-instructions.md  # Copilot SDD — 開發規範與任務追蹤
+├── systemd/
+│   ├── plc-adjust.service       # systemd 監控調控服務
+│   └── plc-decoder@.service     # systemd 解碼器 template 服務
+├── README.md                    # 本文件
+├── requirements.txt             # Python 套件（版本鎖定）
+├── decoder.py                   # PLC 點位資料消化、解碼程式
+└── adjust.py                    # PLC 點位採集流量監測、調控程式
 ```
+
+---
 
 ## 系統需求與安裝
 
 ### 系統需求
 
-* 作業系統： Linux (Kernel 4.18+，支援 eBPF)
-* MQTT Broker： Mosquitto 或其他相容的 MQTT broker (本案例為安裝於單板電腦)
-* 開發工具
-    * Python 3.x, paho-mqtt
-    * BCC 或 libbpf (用於 eBPF 程式開發)
+* **作業系統**：Linux (Kernel 4.18+，建議 5.8+ 以支援 `CAP_PERFMON`)
+* **MQTT Broker**：Mosquitto 或其他相容的 MQTT broker
+* **開發工具**
+    * Python 3.10+、pip
+    * BCC 0.29.1 (用於 eBPF 程式開發)
 
 ### 安裝步驟
 
-#### (非必要) 安裝並啟用 MQTT broker (Mosquitto)
+#### 安裝並啟用 MQTT broker (Mosquitto)
 
 ```bash
 sudo apt-get install mosquitto
@@ -60,50 +68,129 @@ sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
 #### 安裝 Python 相依套件
 
 ```bash
-sudo su
 pip3 install -r requirements.txt
 ```
+
+---
 
 ## 專案情境說明
 
 ### 點位採集頻率與資料量
 
-本專案預設的情境為，每一機台有 16 個模組 × 8 個單元 × 4 個點位 -- 共 512 點，每點 16 bytes，總計 8192 bytes/s 的採集數據。點位採集方式，則有一個 PLC 點位採集硬體模組，透過單板電腦的 COM / Serial Port 通訊。
+本專案預設情境：每一機台有 16 個模組 × 8 個單元 × 4 個點位（共 512 點），每點 16 bytes，總計 **8192 bytes/s** 的採集數據。點位採集透過單板電腦的 COM / Serial Port 通訊。
 
-###  PLC 點位採集程式
+### MQTT Topic 結構
 
-點位採集模組與程式在此無法提供，但是您可以模擬採集模組的動作，先由 COM / Serial Port 讀取模擬點位資料，再將點位資料發布至 MQTT Topic "``{機台 SN}/{模組 IDˋ}/{單元 ID}/{點位 ID}``"、緩存於 MQTT Broker，然後等待點位資料消化、轉拋程式處理。
+```
+{machine_sn}/{module_id}/{unit_id}/{point_id}
+```
 
+`adjust.py` 依流量分三個層級訂閱（均符合 MQTT 3.1.1 規範）：
+
+| 流量層級 | 訂閱 Topic 範例 |
+|---|---|
+| 低（< min_delta） | `{sn}/#` |
+| 中（< 2×min_delta） | `{sn}/1/#`, `{sn}/2/#`, … |
+| 高（≥ 2×min_delta） | `{sn}/1/1/#`, `{sn}/1/2/#`, … |
+
+---
 
 ## 使用說明
 
-### 啟動監測與調控程式
+### 方法一：直接執行（開發 / 測試用）
+
+#### 啟動監測與調控程式
 
 ```bash
-sudo su
-python3 adjust.py
+sudo python3 adjust.py
 ```
 
-調控程式會根據機台點位採集流量 (COM / Serial Port)，調用啟動解碼程式、去訂閱適當的 MQTT Topic 路徑 (依照資料量判斷，訂閱單一或是個別 PLC 模組、單元的 Topic)、處理 PLC 點位資料。
+完整參數說明：
 
+```
+usage: adjust.py [-h] [--serial SERIAL] [--interval INTERVAL]
+                 [--min_delta MIN_DELTA] [--max_module MAX_MODULE]
+                 [--max_unit MAX_UNIT] [--machine_sn MACHINE_SN] [--dry_run]
 
-### 監測調控程式 Usage
-
-```bash!
-python3 adjust.py -h
-usage: adjust.py [-h] [--serial SERIAL] [--interval INTERVAL] [--min_delta MIN_DELTA] [--max_module MAX_MODULE] [--max_unit MAX_UNIT] [--dry_run]
-
-Integrated eBPF monitor and adjuster: measure tty_read events and dynamically spawn decoder processes based on PLC point flow.
+Integrated eBPF monitor and adjuster: measure tty_read bytes and
+dynamically spawn/terminate decoder processes based on PLC point flow.
 
 options:
-  -h, --help            show this help message and exit
-  --serial SERIAL       Specify the serial port name/path to filter (e.g., 'ttyACM0'). Default 'all' means no filtering.
-  --interval INTERVAL   Measurement interval in seconds (default: 60 seconds).
-  --min_delta MIN_DELTA
-                        Minimum delta in tty_read calls to trigger spawning a new decoder process (default: 10).
-  --max_module MAX_MODULE
-                        Maximum module ID (default: 16).
-  --max_unit MAX_UNIT   Maximum unit ID (default: 8).
-  --dry_run             Enable dry run mode: do not actually spawn decoder processes, only display test info.
-
+  -h, --help                show this help message and exit
+  --serial SERIAL           Serial port name to filter (e.g., 'ttyACM0').
+                            Default 'all' means no filtering.
+  --interval INTERVAL       Measurement interval in seconds (default: 60).
+  --min_delta MIN_DELTA     Minimum bytes per interval to trigger scaling
+                            (default: 8192 — 512 points × 16 bytes).
+  --max_module MAX_MODULE   Maximum module ID (default: 16).
+  --max_unit MAX_UNIT       Maximum unit ID (default: 8).
+  --machine_sn MACHINE_SN  Machine serial number for MQTT topic prefix
+                            (default: '1').
+  --dry_run                 Print intended actions without spawning processes.
 ```
+
+#### Dry-run 測試（不影響生產線）
+
+```bash
+python3 adjust.py --dry_run --interval 5 --machine_sn TEST01
+```
+
+### 方法二：systemd 部署（生產環境推薦）
+
+```bash
+# 建立低權限服務帳號
+sudo useradd --system --no-create-home plcmon
+
+# 部署程式
+sudo mkdir -p /opt/plc-edgeflow
+sudo cp adjust.py decoder.py /opt/plc-edgeflow/
+sudo chown -R plcmon:plcmon /opt/plc-edgeflow
+
+# 安裝 systemd 服務
+sudo cp systemd/plc-adjust.service /etc/systemd/system/
+sudo cp systemd/plc-decoder@.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now plc-adjust
+```
+
+站點環境變數可透過 `/etc/plc-edgeflow/adjust.env` 覆蓋預設值：
+
+```bash
+sudo mkdir -p /etc/plc-edgeflow
+sudo tee /etc/plc-edgeflow/adjust.env <<EOF
+PLC_SERIAL=ttyACM0
+PLC_MACHINE_SN=FAB01-TOOL42
+PLC_INTERVAL=60
+PLC_MIN_DELTA=8192
+EOF
+```
+
+---
+
+## 日誌格式
+
+所有程式輸出為 **JSON 結構化日誌**，可直接串接 `journald`、Loki、或任何 JSON 日誌聚合器：
+
+```json
+{"ts": "2025-01-01T12:00:00", "level": "INFO", "event": "Interval measurement", "delta_bytes": 9500, "interval_s": 60, "active_decoders": 3}
+{"ts": "2025-01-01T12:00:00", "level": "INFO", "event": "Decoder spawned", "topic": "FAB01/2/3/#", "pid": 12345}
+{"ts": "2025-01-01T12:01:00", "level": "INFO", "event": "Decoder terminated", "topic": "FAB01/2/3/#", "pid": 12345}
+```
+
+查詢 systemd journal：
+
+```bash
+journalctl -u plc-adjust -f -o json
+```
+
+---
+
+## 開發說明
+
+本專案使用 `.github/copilot-instructions.md` 作為 **GitHub Copilot SDD（軟體設計文件）**，記錄完整的編碼規範、架構決策與改版任務。Copilot Coding Agent 及 Copilot CLI 可直接讀取該文件並依規範產生符合專案標準的程式碼。
+
+```bash
+# 執行測試
+pytest
+```
+

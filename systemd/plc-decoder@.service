@@ -1,0 +1,37 @@
+[Unit]
+Description=PLC EdgeFlow Decoder for topic %i
+Documentation=https://github.com/http418imateapot/PLC-EdgeFlow-eBPF
+After=network.target mosquitto.service
+Wants=mosquitto.service
+# Each decoder instance is bound to the adjuster; stop when the adjuster stops.
+BindsTo=plc-adjust.service
+
+[Service]
+Type=simple
+User=plcmon
+Group=plcmon
+
+EnvironmentFile=-/etc/plc-edgeflow/decoder.env
+
+# %i is the URL-encoded instance name (the MQTT topic), passed via systemctl start
+# plc-decoder@<topic>.service.  The topic is decoded from %i automatically by systemd.
+ExecStart=/usr/bin/python3 /opt/plc-edgeflow/decoder.py \
+    --topic  %i \
+    --broker ${PLC_BROKER:-localhost} \
+    --port   ${PLC_BROKER_PORT:-1883}
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plc-decoder@%i
+
+[Install]
+WantedBy=multi-user.target
