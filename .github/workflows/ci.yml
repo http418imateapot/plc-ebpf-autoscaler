@@ -20,8 +20,7 @@ jobs:
 
       - name: Compile all Python files
         run: |
-          python -m py_compile adjust.py decoder.py
-          find tests -name "*.py" -exec python -m py_compile {} +
+          python -m compileall -q -f .
           echo "All Python files compiled successfully."
 
   test:

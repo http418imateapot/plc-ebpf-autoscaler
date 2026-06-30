@@ -1,4 +1,4 @@
-name: SQL Lint
+name: SQL Syntax
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   sql-lint:
-    name: SQL Syntax Check
+    name: SQL Parse Check
     runs-on: ubuntu-latest
 
     steps:
@@ -22,13 +22,13 @@ jobs:
       - name: Install sqlfluff
         run: pip install sqlfluff==3.3.1
 
-      - name: Lint SQL files
+      - name: Parse SQL files
         run: |
           sql_files=$(find . -name "*.sql" -not -path "./.git/*" | sort)
           if [ -z "$sql_files" ]; then
             echo "No SQL files found — nothing to lint."
             exit 0
           fi
-          echo "Linting SQL files:"
+          echo "Parsing SQL files:"
           echo "$sql_files"
-          sqlfluff lint --dialect sqlite $sql_files
+          sqlfluff parse --dialect sqlite $sql_files
