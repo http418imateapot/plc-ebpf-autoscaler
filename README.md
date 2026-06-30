@@ -1,7 +1,8 @@
 # eBPF 嵌入式 PLC 點位採集器流量管控
 
 [![CI](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/ci.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/ci.yml)
-[![SQL Lint](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml)
+[![SQL Syntax](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/sql-lint.yml)
+[![Release Pipeline](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/release.yml/badge.svg)](https://github.com/http418imateapot/plc-ebpf-autoscaler/actions/workflows/release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/http418imateapot/plc-ebpf-autoscaler)](https://github.com/http418imateapot/plc-ebpf-autoscaler/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -45,6 +46,22 @@ plc-ebpf-autoscaler/
 ---
 
 ## 系統需求與安裝
+
+## 專案語言與腳本分析
+
+* **Python 3.10+（核心程式）**
+  * `adjust.py`：eBPF 流量監控與 decoder 調度。
+  * `decoder.py`：MQTT 訂閱、資料解碼與落地處理。
+  * `tests/*.py`：pytest 測試。
+* **YAML（系統與流程腳本）**
+  * `.github/workflows/*.yml`：CI / SQL syntax / Release pipeline。
+  * `systemd/*.service`：服務部署設定。
+* **Shell 指令（部署與維運）**
+  * README 內提供安裝、部署、診斷指令流程。
+* **SQL（資料處理相關）**
+  * 專案支援 SQLite 處理模式，並提供 SQL 語法解析檢查流程（若有 `.sql` 檔案時自動檢查）。
+
+---
 
 ### 系統需求
 
